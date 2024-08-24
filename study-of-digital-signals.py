@@ -42,7 +42,7 @@ def calculate_snr(signal, noisy_signal):
     return snr
 
 # Definição de diferentes níveis de SNR:
-snr_levels = [np.inf, 3, 5, 8, 10, 13, 15]
+snr_levels = [np.inf, 5, 8, 10, 15]
 pam_bers = []
 ofdm_bers = []
 
