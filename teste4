@@ -1,0 +1,142 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Configuração de parâmetros
+num_symbols = 1000               # Número de símbolos a serem gerados
+num_carriers = 64                # Número de subportadoras para OFDM
+symbol_rate = 10e3               # Taxa de símbolos (Hz)
+sampling_rate = 10 * symbol_rate # Taxa de amostragem (Hz)
+snr_levels = [0, 5, 10, 15, 20]  # Níveis de SNR em dB
+
+# Geração do Sinal PAM
+pam_symbols = np.random.choice([-1, 1], size=num_symbols)  # Modulação BPSK
+samples_per_symbol = int(sampling_rate // symbol_rate)
+pam_signal = np.repeat(pam_symbols, samples_per_symbol)
+
+# Geração do Sinal OFDM
+ofdm_symbols = np.random.choice([-1, 1], size=(num_symbols, num_carriers))  # Modulação BPSK por subportadora
+ofdm_signal = np.fft.ifft(ofdm_symbols, axis=1).flatten()
+
+# Função para Adicionar Ruído AWGN
+def add_awgn_noise(signal, snr_dB):
+    signal_power = np.mean(np.abs(signal) ** 2)
+    noise_power = signal_power / (10 ** (snr_dB / 10))
+    noise = np.sqrt(noise_power / 2) * (
+        np.random.normal(size=signal.shape) + 
+        1j * np.random.normal(size=signal.shape)
+    )
+    noisy_signal = signal + noise
+    return noisy_signal
+
+# Modelagem de Canal Realista (Efeitos de Multipercurso)
+def apply_multipath_channel(signal, multipath_gains, delays):
+    channel_output = np.zeros_like(signal, dtype=complex)
+    for gain, delay in zip(multipath_gains, delays):
+        delayed_signal = np.roll(signal, delay) * gain
+        channel_output += delayed_signal
+    return channel_output
+
+# Equalização no Receptor (OFDM)
+def equalize_ofdm(received_signal, multipath_gains, delays, num_carriers):
+    channel_response = np.zeros(num_carriers, dtype=complex)
+    for gain, delay in zip(multipath_gains, delays):
+        channel_response += gain * np.exp(-1j * 2 * np.pi * np.arange(num_carriers) * delay / num_carriers)
+    equalized_signal = received_signal / channel_response
+    return equalized_signal
+
+# Multipath channel parameters (ganhos e atrasos em amostras)
+multipath_gains = [1, 0.5, 0.3]
+delays = [0, 3, 7]
+
+# Visualizações
+plt.figure(figsize=(12, 8))
+
+# 1. Visualização: Sinais Originais
+plt.subplot(3, 2, 1)
+plt.plot(np.real(pam_signal[:500]), label='PAM Original')
+plt.title('Sinal PAM Original')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+plt.subplot(3, 2, 2)
+plt.plot(np.real(ofdm_signal[:500]), label='OFDM Original')
+plt.title('Sinal OFDM Original')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+# Adicionar Ruído e Canal
+snr_example = 10  # SNR de exemplo para visualização
+pam_noisy = add_awgn_noise(pam_signal, snr_example)
+pam_channel_signal = apply_multipath_channel(pam_noisy, multipath_gains, delays)
+
+ofdm_noisy = add_awgn_noise(ofdm_signal, snr_example)
+ofdm_channel_signal = apply_multipath_channel(ofdm_noisy, multipath_gains, delays)
+
+# 2. Visualização: Sinais com Ruído
+plt.subplot(3, 2, 3)
+plt.plot(np.real(pam_noisy[:500]), label='PAM com Ruído')
+plt.title('Sinal PAM com Ruído AWGN')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+plt.subplot(3, 2, 4)
+plt.plot(np.real(ofdm_noisy[:500]), label='OFDM com Ruído')
+plt.title('Sinal OFDM com Ruído AWGN')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+# 3. Visualização: Sinais Após Canal de Multipercurso
+plt.subplot(3, 2, 5)
+plt.plot(np.real(pam_channel_signal[:500]), label='PAM Pós-Canal')
+plt.title('Sinal PAM Após Canal')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+plt.subplot(3, 2, 6)
+plt.plot(np.real(ofdm_channel_signal[:500]), label='OFDM Pós-Canal')
+plt.title('Sinal OFDM Após Canal')
+plt.xlabel('Amostras')
+plt.ylabel('Amplitude')
+plt.grid()
+
+plt.tight_layout()
+plt.show()
+
+# 4. Taxa de Erro de Bits (BER) para Diferentes SNRs
+pam_bers = []
+ofdm_bers = []
+
+for snr in snr_levels:
+    # PAM
+    pam_noisy = add_awgn_noise(pam_signal, snr)
+    pam_channel_signal = apply_multipath_channel(pam_noisy, multipath_gains, delays)
+    pam_decoded = np.sign(np.real(pam_channel_signal[::samples_per_symbol]))
+    pam_decoded[pam_decoded == 0] = 1
+    pam_bers.append(np.sum(pam_symbols != pam_decoded) / len(pam_symbols))
+    
+    # OFDM
+    ofdm_noisy = add_awgn_noise(ofdm_signal, snr)
+    ofdm_channel_signal = apply_multipath_channel(ofdm_noisy, multipath_gains, delays)
+    ofdm_received = np.fft.fft(ofdm_channel_signal.reshape((num_symbols, num_carriers)), axis=1)
+    ofdm_equalized = equalize_ofdm(ofdm_received, multipath_gains, delays, num_carriers)
+    ofdm_decoded = np.sign(ofdm_equalized.flatten().real)
+    ofdm_decoded[ofdm_decoded == 0] = 1
+    ofdm_bers.append(np.sum(ofdm_symbols.flatten() != ofdm_decoded) / len(ofdm_symbols.flatten()))
+
+# Gráfico de BER vs SNR
+plt.figure(figsize=(10, 6))
+plt.plot(snr_levels, pam_bers, 'o-', label='PAM BER', linewidth=2, markersize=8)
+plt.plot(snr_levels, ofdm_bers, 's-', label='OFDM BER', linewidth=2, markersize=8)
+plt.xlabel('SNR (dB)')
+plt.ylabel('BER (Taxa de Erro de Bit)')
+plt.yscale('log')
+plt.title('BER vs SNR para PAM e OFDM com Efeitos de Canal')
+plt.legend()
+plt.grid(which="both", linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.show()

@@ -1,0 +1,96 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Configuração de parâmetros
+num_symbols = 1000               # Número de símbolos a serem gerados
+num_carriers = 64                # Número de subportadoras para OFDM
+symbol_rate = 10e3               # Taxa de símbolos (Hz)
+sampling_rate = 10 * symbol_rate # Taxa de amostragem (Hz)
+snr_levels = [0, 5, 10, 15, 20]  # Níveis de SNR em dB
+
+# Geração do Sinal PAM
+pam_symbols = np.random.choice([-1, 1], size=num_symbols)  # Modulação BPSK
+samples_per_symbol = int(sampling_rate // symbol_rate)
+pam_signal = np.repeat(pam_symbols, samples_per_symbol).astype(np.float64)  # Garantir tipo float64
+
+# Geração do Sinal OFDM
+ofdm_symbols = np.random.choice([-1, 1], size=(num_symbols, num_carriers))  # Modulação BPSK por subportadora
+ofdm_signal = np.fft.ifft(ofdm_symbols, axis=1).flatten()
+
+# Função para Adicionar Ruído AWGN
+def add_awgn_noise(signal, snr_dB):
+    signal_power = np.mean(np.abs(signal) ** 2)
+    noise_power = signal_power / (10 ** (snr_dB / 10))
+    noise = np.sqrt(noise_power / 2) * (
+        np.random.normal(size=signal.shape) + 
+        1j * np.random.normal(size=signal.shape)
+    )
+    noisy_signal = signal + noise
+    return noisy_signal
+
+# Função para Adicionar Ruído Impulsivo
+def add_impulsive_noise(signal, impulsive_ratio=0.05, impulsive_power_factor=10):
+    num_impulses = int(len(signal) * impulsive_ratio)
+    impulsive_indices = np.random.choice(len(signal), num_impulses, replace=False)
+    signal_with_impulses = signal.copy()
+    signal_with_impulses[impulsive_indices] += impulsive_power_factor * np.random.normal(size=num_impulses)
+    return signal_with_impulses
+
+# Simulação de BER para Diferentes Tipos de Ruído
+pam_bers_awgn = []
+pam_bers_impulsive = []
+ofdm_bers_awgn = []
+ofdm_bers_impulsive = []
+
+for snr in snr_levels:
+    # PAM com AWGN
+    pam_noisy_awgn = add_awgn_noise(pam_signal, snr)
+    pam_decoded_awgn = np.sign(np.real(pam_noisy_awgn[::samples_per_symbol]))
+    pam_decoded_awgn[pam_decoded_awgn == 0] = 1
+    pam_bers_awgn.append(np.sum(pam_symbols != pam_decoded_awgn) / len(pam_symbols))
+
+    # PAM com Ruído Impulsivo
+    pam_noisy_impulsive = add_impulsive_noise(pam_signal, impulsive_ratio=0.01, impulsive_power_factor=5)
+    pam_decoded_impulsive = np.sign(np.real(pam_noisy_impulsive[::samples_per_symbol]))
+    pam_decoded_impulsive[pam_decoded_impulsive == 0] = 1
+    pam_bers_impulsive.append(np.sum(pam_symbols != pam_decoded_impulsive) / len(pam_symbols))
+
+    # OFDM com AWGN
+    ofdm_noisy_awgn = add_awgn_noise(ofdm_signal, snr)
+    ofdm_decoded_awgn = np.sign(np.fft.fft(ofdm_noisy_awgn.reshape((num_symbols, num_carriers)), axis=1).flatten().real)
+    ofdm_decoded_awgn[ofdm_decoded_awgn == 0] = 1
+    ofdm_bers_awgn.append(np.sum(ofdm_symbols.flatten() != ofdm_decoded_awgn) / len(ofdm_symbols.flatten()))
+
+    # OFDM com Ruído Impulsivo
+    ofdm_noisy_impulsive = add_impulsive_noise(ofdm_signal, impulsive_ratio=0.01, impulsive_power_factor=5)
+    ofdm_decoded_impulsive = np.sign(np.fft.fft(ofdm_noisy_impulsive.reshape((num_symbols, num_carriers)), axis=1).flatten().real)
+    ofdm_decoded_impulsive[ofdm_decoded_impulsive == 0] = 1
+    ofdm_bers_impulsive.append(np.sum(ofdm_symbols.flatten() != ofdm_decoded_impulsive) / len(ofdm_symbols.flatten()))
+
+# Gráficos Comparativos
+
+# 1. BER Comparativo para PAM
+plt.figure(figsize=(12, 6))
+plt.plot(snr_levels, pam_bers_awgn, 'o-', label='PAM com AWGN', linewidth=2, markersize=8)
+plt.plot(snr_levels, pam_bers_impulsive, 's-', label='PAM com Ruído Impulsivo', linewidth=2, markersize=8)
+plt.xlabel('SNR (dB)')
+plt.ylabel('BER (Taxa de Erro de Bit)')
+plt.yscale('log')
+plt.title('Comparação de BER (PAM) para Diferentes Tipos de Ruído')
+plt.legend()
+plt.grid(which="both", linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.show()
+
+# 2. BER Comparativo para OFDM
+plt.figure(figsize=(12, 6))
+plt.plot(snr_levels, ofdm_bers_awgn, 'o-', label='OFDM com AWGN', linewidth=2, markersize=8)
+plt.plot(snr_levels, ofdm_bers_impulsive, 's-', label='OFDM com Ruído Impulsivo', linewidth=2, markersize=8)
+plt.xlabel('SNR (dB)')
+plt.ylabel('BER (Taxa de Erro de Bit)')
+plt.yscale('log')
+plt.title('Comparação de BER (OFDM) para Diferentes Tipos de Ruído')
+plt.legend()
+plt.grid(which="both", linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.show()

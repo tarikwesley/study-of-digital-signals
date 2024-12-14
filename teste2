@@ -1,0 +1,127 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Configuração de parâmetros
+num_symbols = 1000               # Número de símbolos a serem gerados
+num_carriers = 64                # Número de subportadoras para OFDM
+symbol_rate = 10e3               # Taxa de símbolos (Hz)
+sampling_rate = 10 * symbol_rate # Taxa de amostragem (Hz)
+snr_levels = [0, 5, 10, 15, 20]  # Níveis de SNR em dB
+
+# 1. Geração do Sinal PAM
+pam_symbols = np.random.choice([-1, 1], size=num_symbols)  # Modulação BPSK
+samples_per_symbol = int(sampling_rate // symbol_rate)
+pam_signal = np.repeat(pam_symbols, samples_per_symbol)
+
+# 2. Geração do Sinal OFDM
+ofdm_symbols = np.random.choice([-1, 1], size=(num_symbols, num_carriers))  # Modulação BPSK por subportadora
+ofdm_signal = np.fft.ifft(ofdm_symbols, axis=1).flatten()
+
+# Visualização dos sinais originais
+plt.figure(figsize=(14, 6))
+plt.subplot(2, 1, 1)
+plt.plot(pam_signal[:500], label='Sinal PAM')
+plt.title('Sinal PAM Original')
+plt.legend()
+plt.grid()
+
+plt.subplot(2, 1, 2)
+plt.plot(ofdm_signal.real[:500], label='Sinal OFDM (Parte Real)')
+plt.title('Sinal OFDM Original')
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.show()
+
+# 3. Função para Adicionar Ruído
+def add_awgn_noise(signal, snr_dB):
+    signal_power = np.mean(np.abs(signal) ** 2)
+    noise_power = signal_power / (10 ** (snr_dB / 10))
+    noise = np.sqrt(noise_power / 2) * (
+        np.random.normal(size=signal.shape) + 
+        1j * np.random.normal(size=signal.shape)
+    )
+    noisy_signal = signal + noise
+    return noisy_signal
+
+# 4. Função para adicionar ruído impulsivo (extensível)
+def add_impulsive_noise(signal, impulsive_ratio=0.05, impulsive_power_factor=10):
+    num_impulses = int(len(signal) * impulsive_ratio)
+    impulsive_indices = np.random.choice(len(signal), num_impulses, replace=False)
+    signal_with_impulses = signal.copy()
+    signal_with_impulses[impulsive_indices] += impulsive_power_factor * np.random.normal(size=num_impulses)
+    return signal_with_impulses
+
+# 5. Cálculo de BER
+def calculate_ber(original_bits, decoded_bits):
+    errors = np.sum(original_bits != decoded_bits)
+    return errors / len(original_bits)
+
+# Simulação para diferentes níveis de SNR
+pam_bers = []
+ofdm_bers = []
+
+for snr in snr_levels:
+    # Adicionar Ruído AWGN
+    pam_noisy = add_awgn_noise(pam_signal, snr)
+    ofdm_noisy = add_awgn_noise(ofdm_signal, snr)
+
+    # Visualização dos sinais com ruído
+    if snr == 5:  # Apenas para ilustrar um caso intermediário
+        plt.figure(figsize=(14, 6))
+        plt.subplot(2, 1, 1)
+        plt.plot(np.real(pam_noisy[:500]), label='Sinal PAM com Ruído (SNR=5dB)')
+        plt.title('Sinal PAM com Ruído')
+        plt.legend()
+        plt.grid()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(np.real(ofdm_noisy[:500]), label='Sinal OFDM com Ruído (SNR=5dB)')
+        plt.title('Sinal OFDM com Ruído')
+        plt.legend()
+        plt.grid()
+        plt.tight_layout()
+        plt.show()
+
+    # Demodulação PAM
+    pam_decoded = np.sign(np.real(pam_noisy[::samples_per_symbol]))
+    pam_decoded[pam_decoded == 0] = 1
+
+    # Demodulação OFDM
+    ofdm_noisy_symbols = np.fft.fft(ofdm_noisy.reshape((num_symbols, num_carriers)), axis=1)
+    ofdm_decoded = np.sign(ofdm_noisy_symbols.flatten().real)
+    ofdm_decoded[ofdm_decoded == 0] = 1
+
+    # Visualização dos sinais após demodulação
+    if snr == 5:  # Apenas para ilustrar um caso intermediário
+        plt.figure(figsize=(14, 6))
+        plt.subplot(2, 1, 1)
+        plt.plot(pam_decoded[:100], label='Sinal PAM Após Demodulação (SNR=5dB)')
+        plt.title('Sinal PAM Após Demodulação')
+        plt.legend()
+        plt.grid()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(ofdm_decoded[:100], label='Sinal OFDM Após Demodulação (SNR=5dB)')
+        plt.title('Sinal OFDM Após Demodulação')
+        plt.legend()
+        plt.grid()
+        plt.tight_layout()
+        plt.show()
+
+    # Cálculo de BER
+    pam_bers.append(calculate_ber(pam_symbols, pam_decoded))
+    ofdm_bers.append(calculate_ber(ofdm_symbols.flatten(), ofdm_decoded))
+
+# Plotagem final da BER
+plt.figure(figsize=(10, 6))
+plt.plot(snr_levels, pam_bers, 'o-', label='PAM BER', linewidth=2, markersize=8)
+plt.plot(snr_levels, ofdm_bers, 's-', label='OFDM BER', linewidth=2, markersize=8)
+plt.xlabel('SNR (dB)')
+plt.ylabel('BER (Taxa de Erro de Bit)')
+plt.yscale('log')
+plt.title('BER vs SNR para PAM e OFDM')
+plt.legend()
+plt.grid(which="both", linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.show()
