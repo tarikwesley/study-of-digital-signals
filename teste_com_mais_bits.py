@@ -131,28 +131,34 @@ ofdm_ber_results, ofdm_snr_real = simulate_ofdm(SNR_LEVELS, NUM_SYMBOLS, NUM_CAR
 # ===========================
 # VISUALIZAÇÕES
 # ===========================
-def plot_signal_evolution(original_signal, noisy_signal, modulated_signal, demodulated_signal, title):
-    plt.figure(figsize=(10, 6))
+def plot_signal_evolution(original_signal, noisy_signal, modulated_signal, demodulated_signal, titulo):
+    plt.figure(figsize=(14, 10))  # Aumentando o tamanho da figura
+
+    # Sinal original
+    plt.subplot(4, 1, 1)
     plt.plot(np.real(original_signal[:100]), label='Original')
-    plt.title(f'{title} - Original Signal')
+    plt.title(f'{titulo} - Sinal Original')
     plt.legend()
     plt.grid()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(np.real(noisy_signal[:100]), label='Noisy')
-    plt.title(f'{title} - Signal with Noise')
+    # Sinal com ruído
+    plt.subplot(4, 1, 2)
+    plt.plot(np.real(noisy_signal[:100]), label='Com Ruído')
+    plt.title(f'{titulo} - Sinal com Ruído')
     plt.legend()
     plt.grid()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(np.real(modulated_signal[:100]), label='Modulated')
-    plt.title(f'{title} - Modulated Signal')
+    # Sinal modulado
+    plt.subplot(4, 1, 3)
+    plt.plot(np.real(modulated_signal[:100]), label='Modulado')
+    plt.title(f'{titulo} - Sinal Modulado')
     plt.legend()
     plt.grid()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(np.real(demodulated_signal[:100]), label='Demodulated')
-    plt.title(f'{title} - Demodulated Signal')
+    # Sinal demodulado
+    plt.subplot(4, 1, 4)
+    plt.plot(np.real(demodulated_signal[:100]), label='Demodulado')
+    plt.title(f'{titulo} - Sinal Demodulado')
     plt.legend()
     plt.grid()
 
