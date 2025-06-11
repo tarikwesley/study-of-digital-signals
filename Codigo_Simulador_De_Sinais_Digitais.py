@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 # ===========================
 # PARAMETRIZAÇÕES
 # ===========================
-NUM_SYMBOLS = 1000           # Número de símbolos
+NUM_SYMBOLS = 100000           # Número de símbolos
 NUM_CARRIERS = 64            # Subportadoras para OFDM
 SNR_LEVELS = np.arange(0, 30, 2)  # Valores de SNR para análise
 MODULATION_ORDERS = [2, 4, 8, 16] # Ordens de modulação PAM
@@ -68,7 +68,7 @@ def calculate_snr(signal, noisy_signal):
 def calculate_ber(original_bits, decoded_bits):
     errors = np.sum(original_bits != decoded_bits)
     ber = errors / len(original_bits)
-    return ber
+    return ber if ber > 0 else np.nan  # Retorna NaN em vez de zero
 
 # ===========================
 # SIMULAÇÕES
