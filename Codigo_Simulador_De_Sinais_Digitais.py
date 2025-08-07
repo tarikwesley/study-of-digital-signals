@@ -131,37 +131,27 @@ ofdm_ber_results, ofdm_snr_simulated = simulate_ofdm(SNR_LEVELS, NUM_SYMBOLS, NU
 # ===========================
 # VISUALIZAÇÕES
 # ===========================
-def plot_signal_evolution(original_signal, noisy_signal, modulated_signal, demodulated_signal, titulo):
-    plt.figure(figsize=(14, 10))  # Aumentando o tamanho da figura
+def plot_signal_evolution(original_signal, noisy_signal, demodulated_signal, titulo):
+    plt.figure(figsize=(14, 8))  # Tamanho da figura
 
-    # Sinal original
-    plt.subplot(4, 1, 1)
-    plt.plot(np.real(original_signal[:100]), label='Original')
-    plt.title(f'{titulo} - Sinal Original')
-    plt.legend()
-    plt.grid()
-
-    # Sinal com ruído
-    plt.subplot(4, 1, 2)
-    plt.plot(np.real(noisy_signal[:100]), label='Com Ruído')
-    plt.title(f'{titulo} - Sinal com Ruído')
-    plt.legend()
-    plt.grid()
-
-    # Sinal modulado
-    plt.subplot(4, 1, 3)
-    plt.plot(np.real(modulated_signal[:100]), label='Modulado')
-    plt.title(f'{titulo} - Sinal Modulado')
+    # Sinal original e com ruído
+    plt.subplot(2, 1, 1)
+    plt.plot(np.real(original_signal[:100]), label='Original', color='blue', linestyle='-')
+    plt.plot(np.real(noisy_signal[:100]), label='Com Ruído', color='red', alpha=0.7, linestyle='--')
+    plt.title(f'{titulo} - Sinal Original vs Com Ruído')
+    plt.xlabel('Amostras')
+    plt.ylabel('Amplitude')
     plt.legend()
     plt.grid()
 
     # Sinal demodulado
-    plt.subplot(4, 1, 4)
-    plt.plot(np.real(demodulated_signal[:100]), label='Demodulado')
+    plt.subplot(2, 1, 2)
+    plt.plot(np.real(demodulated_signal[:100]), label='Demodulado', color='green', linestyle='-')
     plt.title(f'{titulo} - Sinal Demodulado')
+    plt.xlabel('Amostras')
+    plt.ylabel('Amplitude')
     plt.legend()
     plt.grid()
-
     plt.tight_layout()
     plt.show()
 
@@ -190,8 +180,7 @@ def plot_ber(snr_levels, ber_values, labels):
     plt.grid()
     plt.tight_layout()
     plt.show()
-
-
+    
 snr_example = 10  # SNR de exemplo para visualização
 
 data_bits = generate_pam_data(4, NUM_SYMBOLS)
@@ -200,16 +189,14 @@ noisy_signal = add_awgn_noise(pam_symbols, snr_example)  # Exemplo com SNR fixo 
 decoded_bits = pam_demodulate(noisy_signal, pam_levels)
 
 # Chama a função de plot com sinais apropriados
-plot_signal_evolution(pam_symbols, noisy_signal, pam_symbols, decoded_bits, f'{4}-PAM')
+plot_signal_evolution(pam_symbols, noisy_signal, decoded_bits, f'{4}-PAM')
 
 qam_bits = generate_ofdm_data(NUM_SYMBOLS, NUM_CARRIERS)
 _, ofdm_signal = modulate_ofdm(qam_bits, NUM_CARRIERS)
 noisy_signal = add_awgn_noise(ofdm_signal, snr_example)  # SNR fixo para visualização
 decoded_bits = ofdm_demodulate(noisy_signal, NUM_SYMBOLS, NUM_CARRIERS)
 
-plot_signal_evolution(ofdm_signal, noisy_signal, ofdm_signal, decoded_bits, 'OFDM')
-
-
+plot_signal_evolution(ofdm_signal, noisy_signal, decoded_bits, 'OFDM')
 
 # Plotagem dos resultados de SNR
 for order in MODULATION_ORDERS:
@@ -220,9 +207,3 @@ plot_snr_comparison(SNR_LEVELS, ofdm_snr_simulated, title='OFDM')
 plot_ber(SNR_LEVELS, [ofdm_ber_results], labels=['OFDM'])
 plot_ber(SNR_LEVELS, [ber_results_pam[order] for order in MODULATION_ORDERS], 
          labels=[f'{order}-PAM' for order in MODULATION_ORDERS])
-
-# Plotagem combinada dos resultados de BER
-ber_values = [ofdm_ber_results] + [ber_results_pam[order] for order in MODULATION_ORDERS]
-labels = ['OFDM'] + [f'{order}-PAM' for order in MODULATION_ORDERS]
-
-plot_ber(SNR_LEVELS, ber_values, labels=labels)
